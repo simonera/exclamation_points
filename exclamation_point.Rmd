@@ -1,0 +1,125 @@
+---
+title: "Did Trump tweet more exclamation points than other politicians?"
+author: "Simone Rambotti"
+date: "2022-08-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+## Background 
+
+Summer 2020 was intense. It was the first summer with the COVID-19 pandemic. In June, the US [reported](https://www.ajmc.com/view/a-timeline-of-covid19-developments-in-2020) 2 million COVID-19 cases, which grew to 3 million in July. Political discourse was [polarizing](https://en.wikipedia.org/wiki/Political_impact_of_the_COVID-19_pandemic#Political_Discourse), and so were health-relevant behaviors (among others, see [this study](https://www.pnas.org/doi/10.1073/pnas.2007835117) and [this study](https://www.science.org/doi/10.1126/sciadv.abd7204)). The [murder of George Floyd](https://en.wikipedia.org/wiki/Murder_of_George_Floyd) shocked the US and led to a series of [protests](https://en.wikipedia.org/wiki/George_Floyd_protests). The campaign for the [2020 US presidential elections](https://en.wikipedia.org/wiki/2020_United_States_presidential_election) was raging. It was characterized by high levels of contention, which will eventually lead to the [attack on the US Capitol](https://en.wikipedia.org/wiki/2021_United_States_Capitol_attack) on January 6, 2021.
+
+Following the news was exhausting. I occasionally checked Twitter and inevitably found someone I followed retweeting Trump. And it seemed that every single tweet included an exclamation point ```!```  Trump wasn't just tweeting, he was *screaming*. Was that true? I decided to check, and just for fun, during that taxing summer, I did this little project. I had never used ```rtweet``` before, and working on visualizations is always relaxing. So, here it is. 
+
+## Data and Analysis
+
+I collected data using the ```rtweet``` package. I selected a few politicians who are in some ways similar to or different from Trump. For example, I selected some key figures in the Democratic Party, such as the future president Joe Biden and Hillary Clinton. While they represent the establishment of the Democratic Party, I selected some other figures that are to some extent more progressive, possibly in a "populist" way: Elizabeth Warren, Bernie Sanders, Ilhan Omar, and Alexandria Ocasio-Cortez. Finally, to have an international comparison, I selected Brazil's president Jair Bolsonaro, and Italian conservatives Giorgia Meloni and Matteo Salvini. 
+
+I used the following code to scrape the politicians' tweets:
+
+```{r scrape tweets, eval=FALSE}
+library(rtweet)
+
+# get authorization
+auth_setup_default()
+
+# import politician's tweets
+mydata <- get_timeline("ewarren", n = 3200)
+
+# create exclamation point variable
+mydata$excl <- ifelse(grepl("!", mydata$text), 1, 0)
+
+# see frequency distribution of the exclamation point variable
+table(mydata$excl)
+
+# compute mean of exclamation point variable
+mean(mydata$excl)
+
+# create table
+mymatrix <- matrix(c("ewarren", mean(mydata$excl)), ncol = 2, byrow = TRUE)
+
+# create a loop to add other politicians
+clist <- c("BernieSanders", "Ilhan", "AOC", "GiorgiaMeloni", "jairbolsonaro",
+           "JoeBiden", "HillaryClinton", "matteosalvinimi", "realDonaldTrump")
+
+for (i in clist) {
+  mydata <- get_timeline(i, n = 3200)
+  mydata$excl <- ifelse(grepl("!", mydata$text), 1, 0)
+  mean(mydata$excl)
+  mytempmatrix <- matrix(c(i, mean(mydata$excl)), ncol = 2, byrow = TRUE)
+  mymatrix <- rbind(mymatrix, mytempmatrix)
+}
+```
+
+Let's add some comments regarding the code above. First of all, this cannot be replicated after [Trump was permanently banned from Twitter](https://blog.twitter.com/en_us/topics/company/2020/suspension). 
+
+Second, ```get_timeline``` collects tweets from the specified user. I set the desired number of results to 3200, which is the highest number of a user's most recent tweets that can be retrieved. Alternatively, I could have used the option ```n = Inf```. The function ```grepl``` "[searches for matches of a string or string vector. The grepl() method takes a pattern and returns TRUE if a string contains the pattern, otherwise FALSE](https://r-lang.com/grepl-in-r/)." In this case, I'm searching for an exclamation point in the tweet's ```text``` variable, and creating a new variable called ```excl``` where 1 = "the tweet includes an exclamation point" and 0 = "the tweet does not". 
+
+Then, I observed the distribution of the new variable ```text``` and computed its mean. Finally, I created a new data set called ```mymatrix``` which includes the Twitter handle of the selected politician (```ewarren```) and the average score of tweets containing an exclamation point. The options ```ncol = 2, byrow = TRUE``` tell R that I want this matrix to have 1 row and 2 columns.
+
+The loop does the same thing for all the politicians mentioned in the list. For each of them, I created a temporary matrix (```mytempmatrix```), which then I bind to the matrix containing data about the previous politicians (```mymatrix```). The resulting data are below (notice: to see percentage scores instead of proportions, I multiplied the average scores by 100):
+
+| Politician      | Score  |
+|-----------------|--------|
+| ewarren	        | 18.94% |
+| BernieSanders	  | 11.73% |
+| Ilhan	          | 20.01% |
+| AOC	            | 13.94% |
+| GiorgiaMeloni	  | 32.25% |
+| jairbolsonaro	  | 20.76% |
+| JoeBiden	      | 6.91%  |
+| HillaryClinton  | 12.00% |
+| matteosalvinimi | 13.66% |
+| realDonaldTrump | 51.50% |
+
+Tables are good, but you know what's better to observe a pattern? Visualizations. So, let's create the matrix:
+
+```{r create matrix}
+politician <- c("ewarren", "BernieSanders", "Ilhan", "AOC", "GiorgiaMeloni", "jairbolsonaro", "JoeBiden", "HillaryClinton", "matteosalvinimi", "realDonaldTrump")
+
+excl_perc <- c(18.94, 11.73, 20.01, 13.94, 32.25, 20.76, 6.91, 12.00, 13.66, 51.50)
+
+excl_data <- cbind(politician, excl_perc)
+excl_data <- as.data.frame(excl_data)
+excl_data
+```
+
+R reads the % of exclamation point usage as a character:
+
+```{r summary}
+summary(excl_data)
+```
+
+So, I'll change it to numeric:
+
+```{r character to numeric}
+excl_data$excl_perc <- as.numeric(excl_data$excl_perc)
+```
+
+It worked:
+
+```{r summary again}
+summary(excl_data)
+```
+
+Now, let's make a plot. I decided to go with a dot plot. Just for fun, my marker is the Unicode character ```U+0021```. I'll let you guess which one that is... 
+
+```{r plot}
+library(ggplot2)
+ggplot(excl_data) +
+  geom_point(aes(x = excl_perc, y = reorder(politician, excl_perc)), 
+             shape="\u0021", size = 8) + 
+  labs(title = "% of Exclamation Mark Use in Tweets of Selected Politicians",
+       caption = "Collected by Simone Rambotti with rtweets in June 2020", 
+       x = "% of !", y = "Selected Politicians")
+```
+
+And... yes, Trump used exclamation points much more than other politicians. More than 51% of his tweets included an exclamation point. Biden used exclamation points in less than 7% of his tweets, less than anyone else. In general, politicians that can be defined as "populist" tended to use exclamation points more. It's interesting to see that the two final contenders for the 2020 US presidential election were at the top and the bottom of this distribution. That's a wrap for this project. 
